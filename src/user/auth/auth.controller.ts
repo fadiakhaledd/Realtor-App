@@ -1,19 +1,49 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Param,
+  ParseEnumPipe,
+  Post,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { SignInDto, SignUpDto } from '../dtos/auth.dto';
+import { GenerateProductKeyDto, SignInDto, SignUpDto } from '../dtos/auth.dto';
+import { UserType } from '@prisma/client';
+import * as bcrypt from 'bcryptjs';
 
 @Controller('auth')
 export class AuthController {
+  constructor(private readonly authService: AuthService) {}
 
-    constructor(private readonly authService: AuthService) { }
+  @Post('/signup/:userType')
+  async signup(
+    @Body() body: SignUpDto,
+    @Param('userType', new ParseEnumPipe(UserType)) userType: UserType,
+  ) {
+    if (userType !== UserType.BUYER) {
+      if (!body.productKey) {
+        throw new UnauthorizedException();
+      }
+      const validProductKey = `${body.email}-${userType}-${process.env.PRODUCT_KEY_SECRET}`;
 
-    @Post('/signup')
-    signup(@Body() body: SignUpDto) {
-        return this.authService.signup(body)
+      const isValidProductKey = await bcrypt.compare(
+        validProductKey,
+        body.productKey,
+      );
+      if (!isValidProductKey) {
+        throw new UnauthorizedException();
+      }
     }
+    return this.authService.signup(body, userType);
+  }
 
-    @Post('/signin')
-    signin(@Body() body: SignInDto) {
-        return this.authService.signin(body)
-    }
+  @Post('/signin')
+  signin(@Body() body: SignInDto) {
+    return this.authService.signin(body);
+  }
+
+  @Post('/key')
+  generateProductKey(@Body() { userType, email }: GenerateProductKeyDto) {
+    return this.authService.generateProductKey(email, userType);
+  }
 }
