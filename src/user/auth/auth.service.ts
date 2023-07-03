@@ -19,7 +19,7 @@ interface SignInParams {
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(private readonly prismaService: PrismaService) { }
 
   async signup(
     { email, password, name, phone }: SignUpParams,
@@ -65,7 +65,7 @@ export class AuthService {
     if (!isValidPassword) {
       return new HttpException('Invalid credentials', 400);
     }
-    return this.generateToken(user.id, user.name);
+    return { token: this.generateToken(user.id, user.name) };
   }
 
   private generateToken(id: number, name: string) {
@@ -85,6 +85,6 @@ export class AuthService {
   generateProductKey(email: string, userType: UserType) {
     const string = `${email}-${userType}-${process.env.PRODUCT_KEY_SECRET}`;
 
-    return bcrypt.hash(string, 10);
+    return { productkey: bcrypt.hash(string, 10) };
   }
 }
